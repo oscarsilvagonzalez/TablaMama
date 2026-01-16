@@ -3,32 +3,28 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Tabla de mamá – Registro de comidas</title>
-
-  <!-- jsPDF para exportar a PDF en iPhone -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-
+  <title>Registro de comidas – Mamá</title>
   <style>
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-      margin: 0;
       background: #f6f7f9;
+      margin: 0;
       color: #222;
     }
     header {
       background: #ffffff;
       padding: 18px;
-      text-align: center;
       font-size: 24px;
       font-weight: 700;
+      text-align: center;
       border-bottom: 1px solid #ddd;
     }
     .container {
-      padding: 16px;
-      max-width: 700px;
+      max-width: 720px;
       margin: auto;
+      padding: 16px;
     }
-    .day-box {
+    .card {
       background: #ffffff;
       border-radius: 14px;
       padding: 18px;
@@ -36,151 +32,153 @@
     }
     label {
       display: block;
+      margin-top: 14px;
+      margin-bottom: 6px;
       font-size: 16px;
       font-weight: 700;
-      margin-top: 16px;
-      margin-bottom: 6px;
     }
-    input, textarea, button {
+    input, textarea, select, button {
       width: 100%;
       padding: 14px;
       font-size: 18px;
       border-radius: 10px;
       border: 1px solid #ccc;
     }
-    textarea { resize: vertical; }
+    textarea { resize: vertical; min-height: 90px; }
     button {
-      background: #0a66c2;
-      color: white;
-      font-weight: 700;
       margin-top: 16px;
+      background: #0a66c2;
+      color: #fff;
+      font-weight: 700;
       border: none;
       cursor: pointer;
     }
     .meal {
+      margin-top: 16px;
+      padding: 14px;
       border: 1px solid #ddd;
       border-radius: 12px;
-      padding: 14px;
-      margin-top: 14px;
       background: #fafafa;
     }
+    .secondary { background:#999; }
+    .ok { color: green; font-weight:700; margin-top:10px; }
   </style>
 </head>
 <body>
 
-<header>
-  Tabla de mamá – Registro diario de comidas
-</header>
+<header>Registro de comidas – Mamá</header>
 
 <div class="container">
-  <div class="day-box">
+  <div class="card">
 
-    <label>📅 Día</label>
-    <input type="date" id="day" />
+    <label>📅 Fecha</label>
+    <input type="date" id="fecha" />
 
     <h3 style="margin-top:20px">🍽️ Comidas del día</h3>
     <div id="meals"></div>
 
     <button type="button" onclick="addMeal()">➕ Añadir comida</button>
 
-    <label>🚻 Tiempo al baño</label>
-    <input id="bathroom" />
+    <label>🚻 Baño (general del día)</label>
+    <select id="bano">
+      <option value="Normal">Normal</option>
+      <option value="Diarrea">Diarrea</option>
+      <option value="Estreñimiento">Estreñimiento</option>
+    </select>
 
-    <label>💧 Cantidad de agua</label>
-    <input id="water" />
+    <label>💧 Agua total (ml)</label>
+    <input id="agua" type="number" placeholder="Ej. 1500" />
 
-    <label>🧃 Suero oral</label>
-    <input id="suero" />
+    <label>🧃 Suero</label>
+    <input id="suero" placeholder="No / Sí / Cantidad" />
 
-    <button type="button" onclick="saveDay()">💾 Guardar día</button>
-    <button type="button" onclick="shareWhatsApp()">📲 Enviar por WhatsApp</button>
-    <button type="button" onclick="exportPDF()">📄 Exportar a PDF</button>
+    <button type="button" onclick="guardarEnSheets()">💾 Guardar en Google Sheets</button>
+    <div id="status"></div>
 
   </div>
 </div>
 
 <script>
-let meals = [];
+// 👉 PON AQUÍ TU URL DE APPS SCRIPT
+theUrl = "https://script.google.com/macros/s/AKfycbz8c0tABqdTrAYnGcTyKQxtI6zJGjDpcU42eirg_cgRBrDgYj5PtO55rcaGX7EnCxC6/exec";
+
+function todayISO() {
+  const d = new Date();
+  return d.toISOString().split('T')[0];
+}
+
+document.getElementById('fecha').value = todayISO();
+
+let mealIndex = 0;
 
 function addMeal() {
-  const index = meals.length;
   const container = document.getElementById('meals');
-
   const div = document.createElement('div');
   div.className = 'meal';
-
   div.innerHTML = `
-    <label>Hora de comida</label>
-    <input type="time" id="time_${index}" />
+    <label>Hora</label>
+    <input type="time" id="hora_${mealIndex}" />
 
-    <label>Tipo de alimentos</label>
-    <textarea id="food_${index}"></textarea>
+    <label>Tipo de comida</label>
+    <select id="tipo_${mealIndex}">
+      <option value="Desayuno">Desayuno</option>
+      <option value="Comida">Comida</option>
+      <option value="Cena">Cena</option>
+      <option value="Otro">Otro</option>
+    </select>
 
-    <label>Cantidad + / -</label>
-    <input id="amount_${index}" />
+    <label>Alimentos</label>
+    <textarea id="alimentos_${mealIndex}"></textarea>
+
+    <label>Cantidad</label>
+    <select id="cantidad_${mealIndex}">
+      <option value="Poca">Poca</option>
+      <option value="Normal">Normal</option>
+      <option value="Mucha">Mucha</option>
+    </select>
   `;
-
   container.appendChild(div);
-  meals.push(index);
+  mealIndex++;
 }
 
-function saveDay() {
-  const day = document.getElementById('day').value;
-  if (!day) { alert('Selecciona el día'); return; }
+function guardarEnSheets() {
+  const fecha = document.getElementById('fecha').value;
+  const bano = document.getElementById('bano').value;
+  const agua = document.getElementById('agua').value;
+  const suero = document.getElementById('suero').value;
 
-  const data = {
-    day,
-    meals: [],
-    bathroom: bathroom.value,
-    water: water.value,
-    suero: suero.value
-  };
+  if (mealIndex === 0) {
+    alert('Añade al menos una comida');
+    return;
+  }
 
-  meals.forEach(i => {
-    data.meals.push({
-      time: document.getElementById(`time_${i}`).value,
-      food: document.getElementById(`food_${i}`).value,
-      amount: document.getElementById(`amount_${i}`).value
+  const payload = [];
+
+  for (let i = 0; i < mealIndex; i++) {
+    payload.push({
+      fecha,
+      hora: document.getElementById(`hora_${i}`).value,
+      tipoComida: document.getElementById(`tipo_${i}`).value,
+      alimentos: document.getElementById(`alimentos_${i}`).value,
+      cantidad: document.getElementById(`cantidad_${i}`).value,
+      bano,
+      agua,
+      suero
     });
+  }
+
+  fetch(theUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  })
+  .then(r => r.text())
+  .then(() => {
+    document.getElementById('status').innerHTML = '<div class="ok">✔ Guardado correctamente</div>';
+  })
+  .catch(() => {
+    alert('Error al guardar');
   });
-
-  localStorage.setItem(`tabla_mama_${day}`, JSON.stringify(data));
-  alert('Día guardado correctamente');
-}
-
-function shareWhatsApp() {
-  const day = document.getElementById('day').value;
-  const raw = localStorage.getItem(`tabla_mama_${day}`);
-  if (!raw) { alert('Primero guarda el día'); return; }
-
-  const d = JSON.parse(raw);
-  let text = `Tabla de mamá – ${d.day}\n\n`;
-  d.meals.forEach((m, i) => {
-    text += `Comida ${i+1}: ${m.time} – ${m.food} – ${m.amount}\n`;
-  });
-  text += `\nBaño: ${d.bathroom}\nAgua: ${d.water}\nSuero: ${d.suero}`;
-
-  window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
-}
-
-function exportPDF() {
-  const { jsPDF } = window.jspdf;
-  const pdf = new jsPDF();
-
-  const day = document.getElementById('day').value || 'sin-fecha';
-  let y = 10;
-
-  pdf.text(`Tabla de mamá – ${day}`, 10, y);
-  y += 10;
-
-  meals.forEach((m, i) => {
-    pdf.text(`Comida ${i+1}`, 10, y); y += 6;
-    pdf.text(`Hora: ${document.getElementById(`time_${m}`).value}`, 14, y); y += 6;
-    pdf.text(`Alimentos: ${document.getElementById(`food_${m}`).value}`, 14, y); y += 6;
-    pdf.text(`Cantidad: ${document.getElementById(`amount_${m}`).value}`, 14, y); y += 8;
-  });
-
-  pdf.save(`tabla-mama-${day}.pdf`);
 }
 </script>
 
